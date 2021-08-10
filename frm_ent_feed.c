@@ -13,8 +13,9 @@
 /// LAST RELEASE DATE  : 21-Jun-2019
 ///
 /// MODIFICATION HISTORY :
-///     1.0         21-Jun-2019     First Version
-///     1.1.1       31-Jul-2019     get customer account for change group process
+///     1.0         21-Jun-2020     First Version
+///     1.1.1       31-Jul-2020     get customer account for change group process
+///     1.2.0       25-Aug-2020     add dealer entities
 ///
 ///
 
@@ -44,6 +45,7 @@ char gszIniFile[SIZE_FULL_NAME];
 #define MODE_RECONCL    2
 #define MODE_CHN_GRP    3
 #define MODE_PRG_TAB    4
+#define MODE_DLR_FED    5
 int gzMode;
 
 
@@ -158,8 +160,9 @@ int main(int argc, char *argv[])
 
     setCommitRec(atoi(gszIniParCommon[E_REC_COMMIT]));
     if ( gzMode == MODE_ENT_FED ) { // query order_fms where flag is null
-        writeLog(LOG_INF, "starting with Entity Feed Mode");
+        writeLog(LOG_INF, "starting with Entity(mobile/customer) Feed Mode");
         procOrderFms(gszIniParOutput, gszIniParCommon, gszIniParDefGrp, FLG_CMPL_FED);
+        procDealer(gszIniParOutput, gszIniParCommon);
     }
     else if ( gzMode == MODE_UPD_UNK ) {    // insert or update to order_fms with flag is null
         writeLog(LOG_INF, "starting with Unknow Entity Check Mode");
@@ -179,6 +182,10 @@ int main(int argc, char *argv[])
     else if ( gzMode == MODE_PRG_TAB ) {
         writeLog(LOG_INF, "starting with Purge Order_FMS table Mode");
         purgeTable(atoi(gszIniParDbConnSfn[E_SFN_PURGE_DAY]));
+    }
+    else if ( gzMode == MODE_DLR_FED ) {
+        writeLog(LOG_INF, "starting with Dealer Feed Mode");
+        procDealer(gszIniParOutput, gszIniParCommon);
     }
     else {
         writeLog(LOG_WRN, "running mode is not specified");
@@ -252,6 +259,10 @@ int readConfig(int argc, char *argv[])
             strcpy(mode, "_purged");
             gzMode = MODE_PRG_TAB;
         }
+        else if ( strcmp(argv[i], "-dealer") == 0 ) {
+            strcpy(mode, "_dealer");
+            gzMode = MODE_DLR_FED;
+        }
         else {
             fprintf(stderr, "unknow '%s' parameter\n", argv[i]);
             printUsage();
@@ -319,7 +330,8 @@ void printUsage()
     fprintf(stderr, "\tas entities update (insert/delete/update) by reading from database\n");
     fprintf(stderr, "\tthen output to files as eFIT input\n\n");
     fprintf(stderr, "%s.exe <-ent_fed|-upd_unk|-chn_grp|-reconcl|-purge> [-n <ini_file>] [-mkini]\n", _APP_NAME_);
-    fprintf(stderr, "\t-ent_fed\tto perform daily feed of entities (write eFIT file)\n");
+    fprintf(stderr, "\t-ent_fed\tto perform daily feed of mobile/customer entities (write eFIT file)\n");
+    fprintf(stderr, "\t-dealer\t\tto perform daily feed of only dealer entities (write eFIT file)\n");
     fprintf(stderr, "\t-upd_unk\tto perform event-loaded entity check for update\n");
     fprintf(stderr, "\t-chn_grp\tto perform change subscriber group from entry to next level\n");
     fprintf(stderr, "\t-reconcl\tto perform reconcile of entity between subfnt and erm\n");

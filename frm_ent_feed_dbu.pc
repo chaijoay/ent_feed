@@ -13,8 +13,9 @@
 /// LAST RELEASE DATE  : 21-Jun-2019
 ///
 /// MODIFICATION HISTORY :
-///     1.0         21-Jun-2019     First Version
-///     1.1.1       31-Jul-2019     get customer account for change group process
+///     1.0         21-Jun-2020     First Version
+///     1.1.1       31-Jul-2020     get customer account for change group process
+///     1.2.0       25-Aug-2020     add dealer entities
 ///
 ///
 #include "frm_ent_feed_dbu.h"
@@ -133,9 +134,23 @@ char gzContPhoneBrandModel[100+1];
 char gzContPhoneEndDate[9+1];
 char gzContPhoneImei[30+1];
 char gzContPhoneStartDate[9+1];
+char gzMobDeactDate[9+1];
 int gnDefGrpCus;
 int gnDefGrpMob;
 int gnCommitRec = 1000;
+
+char gzDealerCd[31];
+char gzMasterCd[31];
+char gzName[101];
+char gzStatusCd[31];
+char gzStatusDt[15];
+char gzPartnerType[31];
+char gzPartnerSubType[31];
+char gzRegion[31];
+char gzPartnerProvince[11];
+char gzPartnerBizType[51];
+char gzPartnerChar[51];
+char gzRiskDealer[2];
 
 void setCommitRec(int commit_cnt)
 {
@@ -269,6 +284,7 @@ void clearFields()
     memset(gzContPhoneEndDate    , 0x00, sizeof(gzContPhoneEndDate));
     memset(gzContPhoneImei       , 0x00, sizeof(gzContPhoneImei));
     memset(gzContPhoneStartDate  , 0x00, sizeof(gzContPhoneStartDate));
+    memset(gzMobDeactDate        , 0x00, sizeof(gzMobDeactDate));
 
 }
 
@@ -541,7 +557,11 @@ int writeOutput(FILE *fp, const char *ord_type, const char *key_acc, const char 
             wrcnt = ++iccnt;
         }
         else if ( strcmp(ord_type, INS_DLR) == 0 ) {   // Insert Dealer
-            result = 0;
+            result = fprintf(fp, "%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|\n",
+                            ord_type, gzDealerCd, gzMasterCd
+                            , gzStatusCd, gzStatusDt, gzPartnerType
+                            , gzPartnerSubType, gzName, gzRegion
+                            , gzPartnerProvince, gzPartnerBizType, gzPartnerChar, gzRiskDealer);
             wrcnt = ++idcnt;
         }
         else if ( strcmp(ord_type, INS_MOB) == 0 ) {   // Insert Subscriber (Mobile)
@@ -549,7 +569,7 @@ int writeOutput(FILE *fp, const char *ord_type, const char *key_acc, const char 
             strcpy(bAddr2, strReplaceAll(gzBillAddr2, "|", "-"));
             strcpy(cAddr1, strReplaceAll(gzCustAddr1, "|", "-"));
             strcpy(cAddr2, strReplaceAll(gzCustAddr2, "|", "-"));
-            result = fprintf(fp, "%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|\n"
+            result = fprintf(fp, "%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|\n"
                               , ord_type, gzMobActDate, key_acc, gzMobSegment, gzMobStat
                               , gzMobStatDate, bill_acc, gzBillCycle, gzBillDay, gzBillName
                               , bAddr1, bAddr2, gzBillProvince, gzBillZipCode, gzCardType
@@ -559,7 +579,7 @@ int writeOutput(FILE *fp, const char *ord_type, const char *key_acc, const char 
                               , gzCustNationality, gzCustContTitle, gzCustContName, gzCustContMobilePhone, gzCustContHomePhone
                               , gzDealerCode, gzDealerName, gzImsi, gzIrRegDate, gzMaxPaid
                               , gzOrdLocCode, gzOrdLocName, gzOrdReason, gzPaymentType, gzProductCode
-                              , gzGrpId, gzGrpAssign, gzFmsFeatures, gzFraudFlag, gzSuspensions, gzPayType);
+                              , gzGrpId, gzGrpAssign, gzFmsFeatures, gzFraudFlag, gzSuspensions, gzPayType, gzMobDeactDate);
             wrcnt = ++iscnt;
         }
         writeLog(LOG_DB3, "write order_type of %s, %d bytes (rec_no %d)", ord_type, result, wrcnt);
@@ -750,12 +770,12 @@ int procOrderFms(char out_ini[][SIZE_ITEM_L], char comm_ini[][SIZE_ITEM_L], char
                 result = FAILED;
                 break;
             }
-            if ( prepareRecord(ordertype, mobile_no, customeraccount, billingaccount, dealer_cd, location_cd, rowid, ofp, day2grp_chng_conv, fedflg) == SUCCESS ) {
+            if ( prepareRecord(ordertype, mobile_no, customeraccount, billingaccount, dealer_cd, rowid, ofp, day2grp_chng_conv, fedflg) == SUCCESS ) {
                 fileRecCnt++;
             }
         }
         else {      // same order type
-            if ( prepareRecord(ordertype, mobile_no, customeraccount, billingaccount, dealer_cd, location_cd, rowid, ofp, day2grp_chng_conv, fedflg) ==  SUCCESS ) {
+            if ( prepareRecord(ordertype, mobile_no, customeraccount, billingaccount, dealer_cd, rowid, ofp, day2grp_chng_conv, fedflg) ==  SUCCESS ) {
                 fileRecCnt++;
             }
         }
@@ -791,7 +811,7 @@ int procOrderFms(char out_ini[][SIZE_ITEM_L], char comm_ini[][SIZE_ITEM_L], char
 
 }
 
-int prepareRecord(char *ord_type, char *mob_no, char *cus_acc, char *bill_acc, char *dealer_cd, char *loc_cd, char *row_id, FILE *fp, int day2chng, char feed_flg)
+int prepareRecord(char *ord_type, char *mob_no, char *cus_acc, char *bill_acc, char *dealer_cd, char *row_id, FILE *fp, int day2chng, char feed_flg)
 {
 
     int result = FAILED;
@@ -801,7 +821,8 @@ int prepareRecord(char *ord_type, char *mob_no, char *cus_acc, char *bill_acc, c
         result = getCustAcc(ord_type, cus_acc, fp);
     }
     else if ( strcmp(ord_type, INS_DLR) == 0 ) {   // Insert/Update Dealer
-        // business requirement pending ...
+        result = (writeOutput(fp, ord_type, dealer_cd, "", "") < 0 ? FAILED : SUCCESS);
+        return result;  // no updateProcRecord for dealer entity since they are from another source
     }
     else if ( strcmp(ord_type, INS_MOB) == 0 ) {   // Insert/Update MobileSubscriber
         result = getMobileSub(ord_type, mob_no, cus_acc, bill_acc, fp, day2chng);
@@ -811,6 +832,7 @@ int prepareRecord(char *ord_type, char *mob_no, char *cus_acc, char *bill_acc, c
     }
     else if ( strcmp(ord_type, DEL_DLR) == 0 && strlen(dealer_cd) > 0 ) {   // Delete Dealer
         result = (writeOutput(fp, ord_type, dealer_cd, "", "") < 0 ? FAILED : SUCCESS);
+        return result;  // no updateProcRecord for dealer entity since they are from another source
     }
     else if ( strcmp(ord_type, DEL_MOB) == 0 && strlen(mob_no) > 0 ) {   // Delete MobileSubscriber
         result = (writeOutput(fp, ord_type, mob_no, "", "") < 0 ? FAILED : SUCCESS);
@@ -929,7 +951,7 @@ int getMobileSub(char *ord_type, char *mob_no, char *cus_acc, char *bill_acc, FI
 
     EXEC SQL AT SFN_DB  SELECT  NVL(IMSI, ' ')
                                 , NVL(TO_CHAR(ACTIVATION_DATE, 'YYYYMMDD'), ' ')
-                                , NVL(STATUS, ' ')
+                                , NVL(UPPER(STATUS), ' ')
                                 , NVL(TO_CHAR(STATUSDATE, 'YYYYMMDD'), ' ')
                                 , NVL(DEALER_NAME, ' ')
                                 , NVL(DEALER_CODE, ' ')
@@ -980,6 +1002,13 @@ int getMobileSub(char *ord_type, char *mob_no, char *cus_acc, char *bill_acc, FI
         getLov(E_COMPANY, _company, gzCompany);
         getLov(E_PAYTYPE, _charge_type, gzPayType);
         getCustAcc(ord_type, cust_acct, NULL);
+
+        if ( strncmp(_status, "TERM", 4) == 0 || strncmp(_status, "DISCON", 6) == 0 ) {
+            strcpy(gzMobDeactDate, gzMobStatDate);
+        }
+        else {
+            memset(gzMobDeactDate, 0x00, sizeof(gzMobDeactDate));
+        }
 
         writeLog(LOG_DB1, "getMobileSub(MOBILE_ACCOUNT table) mobile'%s', act_date'%s', act_day'%d', num_day_cct'%d'", mob_no, gzMobActDate, _active_day, day2chng);
         _gid = getSubGroupAsFrmGroupId(gzCustCat, gzCustSubCat, _active_day, day2chng);
@@ -2002,5 +2031,191 @@ int getCustAccFromMobile(char *mob_no, char *cus_acc)
         return FAILED;
     }
     return SUCCESS;
+
+}
+
+int procDealer(char out_ini[][SIZE_ITEM_L], char comm_ini[][SIZE_ITEM_L])
+{
+
+    VARCHAR szDlSql[SIZE_BUFF];
+
+    char row_id[50+1], master_id[50+1];
+
+    int recFetCnt = 0, curFileRecCnt = 0, totWrtOut = 0;
+
+    char file_dtm[SIZE_DATE_TIME+1];
+    char file_fname[SIZE_ITEM_L];
+    char cmd[SIZE_ITEM_X];
+    FILE *ofp = NULL;
+    int result = SUCCESS;
+
+    memset(file_fname, 0x00, sizeof(file_fname));
+    memset(file_dtm, 0x00, sizeof(file_dtm));
+    strcpy(file_dtm, getSysDTM(DTM_DATE_TIME));
+    sprintf(file_fname, "%s/%s_%s%s%s", comm_ini[E_TMP_DIR], out_ini[E_OUT_FPREF], INS_DLR, file_dtm, out_ini[E_OUT_FSUFF]);
+    if ( (ofp = fopen(file_fname, "a")) == NULL ) {
+        writeLog(LOG_ERR, "cannot open append %s (%s)", file_fname, strerror(errno));
+        return FAILED;
+    }
+
+    strcpy((char*)szDlSql.arr,
+        "SELECT NVL(A.ROW_ID, 'NA'), NVL(A.MASTER_ID, 'NA') "\
+            ", NVL(A.LOCATION_CD, ' ') "\
+            ", NVL(B.LOCATION_CD, 'NA') "\
+            ", NVL(A.NAME, ' ') "\
+            ", UPPER(NVL(A.PARTNER_STATUS, ' ')) "\
+            ", TO_CHAR(NVL(A.LAST_UPD, SYSDATE), 'YYYYMMDDHH24MISS')"\
+            ", (CASE WHEN A.PARTNER_FLG = 'Y' THEN NVL(A.PARTNER_TYPE, 'NA') ELSE NVL(A.DIVISION_TYPE, 'NA') END) "\
+            ", NVL(A.PARTNER_SUB_TYPE, 'NA') "\
+            ", NVL(UPPER(A.REGION), 'NA') "\
+            ", NVL(A.PARTNER_PROVINCE, 'UNK') "\
+            ", NVL(UPPER(A.PARTNER_BUSINESS_TYPE), 'NA') "\
+            ", NVL(UPPER(A.PARTNER_CHARACTERISTIC), 'NA') "\
+            ", UPPER(NVL(C.FLAG, 'N')) "\
+        "FROM SFF_PARTNER_DIVISION A "\
+            "LEFT JOIN SFF_PARTNER_DIVISION B ON B.ROW_ID = A.MASTER_ID "\
+            "LEFT JOIN RISK_DEALER C ON C.DEALERCODE = A.LOCATION_CD "\
+            "WHERE A.LOCATION_CD IS NOT NULL AND A.LOCATION_CD <> '8888'");
+    szDlSql.len = strlen((char*)szDlSql.arr);
+    writeLog(LOG_DB1, (char*)szDlSql.arr);
+
+    EXEC SQL AT SFN_DB PREPARE orcDlrStmt FROM :szDlSql;
+    EXEC SQL AT SFN_DB DECLARE orcDlrCrs CURSOR FOR orcDlrStmt;
+    EXEC SQL AT SFN_DB OPEN orcDlrCrs;
+
+    if ( sqlca.sqlcode < SUCCESS ) {
+        char oerr[SIZE_ITEM_M];
+        strcpy(oerr, trimStr(sqlca.sqlerrm.sqlerrmc));
+        writeLog(LOG_ERR, "procDealer: unable to open orcDlrCrs on SFF_PARTNER_DIVISION table, Ora(%d) - %s", sqlca.sqlcode, oerr);
+        EXEC SQL AT SFN_DB CLOSE orcDlrCrs;
+        return FAILED;
+    }
+
+     while ( TRUE ) {
+
+        if ( isTerminated() ) {
+            break;
+        }
+
+        memset(row_id, 0x00, sizeof(row_id));
+        memset(master_id, 0x00, sizeof(master_id));
+        memset(gzDealerCd, 0x00, sizeof(gzDealerCd));
+        memset(gzMasterCd, 0x00, sizeof(gzMasterCd));
+        memset(gzName, 0x00, sizeof(gzName));
+        memset(gzStatusCd, 0x00, sizeof(gzStatusCd));
+        memset(gzStatusDt, 0x00, sizeof(gzStatusDt));
+        memset(gzPartnerType, 0x00, sizeof(gzPartnerType));
+        memset(gzPartnerSubType, 0x00, sizeof(gzPartnerSubType));
+        memset(gzRegion, 0x00, sizeof(gzRegion));
+        memset(gzPartnerProvince, 0x00, sizeof(gzPartnerProvince));
+        memset(gzPartnerBizType, 0x00, sizeof(gzPartnerBizType));
+        memset(gzPartnerChar, 0x00, sizeof(gzPartnerChar));
+        memset(gzRiskDealer, 0x00, sizeof(gzRiskDealer));
+
+        EXEC SQL AT SFN_DB FETCH orcDlrCrs INTO
+        :row_id,
+        :master_id,
+        :gzDealerCd,
+        :gzMasterCd,
+        :gzName,
+        :gzStatusCd,
+        :gzStatusDt,
+        :gzPartnerType,
+        :gzPartnerSubType,
+        :gzRegion,
+        :gzPartnerProvince,
+        :gzPartnerBizType,
+        :gzPartnerChar,
+        :gzRiskDealer;
+
+        if ( sqlca.sqlcode != SUCCESS ) {
+            char oerr[SIZE_ITEM_M];
+            if ( sqlca.sqlcode != NOT_FOUND ) {
+                strcpy(oerr, trimStr(sqlca.sqlerrm.sqlerrmc));
+                writeLog(LOG_INF, "procDealer: exiting cursor loop orcDlrCrs, Ora(%d) - %s", sqlca.sqlcode, oerr);
+            }
+            break;
+        }
+
+        trimStr(row_id);
+        trimStr(master_id);
+        strcpy(gzDealerCd, trimStr(gzDealerCd));
+        trimStr(gzMasterCd);
+        strcpy(gzName, trimStr(gzName));
+        strcpy(gzStatusCd, trimStr(gzStatusCd));
+        trimStr(gzStatusDt);
+        trimStr(gzPartnerType);
+        strcpy(gzPartnerSubType, trimStr(gzPartnerSubType));
+        trimStr(gzRegion);
+        trimStr(gzPartnerProvince);
+        trimStr(gzPartnerBizType);
+        trimStr(gzPartnerChar);
+        trimStr(gzRiskDealer);
+
+        recFetCnt++;
+
+        writeLog(LOG_DB3, "process dealer(%s): row_id'%s' master_id'%s' location_cd'%s' ", INS_DLR, row_id, master_id, gzDealerCd);
+
+        if ( curFileRecCnt >= _MAX_REC_FILE_ ) {
+
+            memset(file_dtm, 0x00, sizeof(file_dtm));
+            strcpy(file_dtm, getSysDTM(DTM_DATE_TIME));
+
+            if ( ofp != NULL ) {
+                fclose(ofp);
+                ofp = NULL;
+            }
+            if ( comm_ini[E_BCKUP][0] == 'Y' ) {
+                sprintf(cmd, "cp %s %s", file_fname, comm_ini[E_BCKUP_DIR]);
+                writeLog(LOG_DB3, cmd);
+                system(cmd);
+            }
+            sprintf(cmd, "mv %s %s", file_fname, out_ini[E_OUT_DIR]);
+
+            writeLog(LOG_DB3, cmd);
+            system(cmd);
+            writeLog(LOG_INF, "processed %s record = %d (%s)", INS_DLR, curFileRecCnt, file_fname);
+            totWrtOut += curFileRecCnt;
+            curFileRecCnt = 0;
+
+            memset(file_fname, 0x00, sizeof(file_fname));
+            sprintf(file_fname, "%s/%s_%s%s%s", comm_ini[E_TMP_DIR], out_ini[E_OUT_FPREF], INS_DLR, file_dtm, out_ini[E_OUT_FSUFF]);
+            if ( (ofp = fopen(file_fname, "a")) == NULL ) {
+                writeLog(LOG_ERR, "cannot open append %s (%s)", file_fname, strerror(errno));
+                result = FAILED;
+                break;
+            }
+        }
+
+        if ( prepareRecord(INS_DLR, "", "", "", gzDealerCd, "", ofp, 0, 0) ==  SUCCESS ) {
+            curFileRecCnt++;
+        }
+
+        if ( recFetCnt % gnCommitRec == 0 ) {
+            writeLog(LOG_INF, "%d records has been fetched", recFetCnt);
+        }
+    }   /* End of outer while loop (1) */
+    EXEC SQL AT SFN_DB CLOSE orcDlrCrs;
+
+    if ( ofp != NULL ) {
+        fclose(ofp);
+        ofp = NULL;
+    }
+    if ( curFileRecCnt > 0 ) {
+        if ( comm_ini[E_BCKUP][0] == 'Y' ) {
+            sprintf(cmd, "cp %s %s", file_fname, comm_ini[E_BCKUP_DIR]);
+            writeLog(LOG_DB3, cmd);
+            system(cmd);
+        }
+        sprintf(cmd, "mv %s %s", file_fname, out_ini[E_OUT_DIR]);
+
+        writeLog(LOG_DB3, cmd);
+        system(cmd);
+        writeLog(LOG_INF, "processed %s record = %d (%s)", INS_DLR, curFileRecCnt, file_fname);
+        totWrtOut += curFileRecCnt;
+    }
+    writeLog(LOG_INF, "total retrieved record = %d, write record = %d", recFetCnt, totWrtOut);
+
+    return result;
 
 }

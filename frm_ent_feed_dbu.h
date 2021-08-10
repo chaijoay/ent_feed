@@ -13,8 +13,9 @@
 /// LAST RELEASE DATE  : 21-Jun-2019
 ///
 /// MODIFICATION HISTORY :
-///     1.0         21-Jun-2019     First Version
-///     1.1.1       31-Jul-2019     get customer account for change group process
+///     1.0         21-Jun-2020     First Version
+///     1.1.1       31-Jul-2020     get customer account for change group process
+///     1.2.0       25-Aug-2020     add dealer entities
 ///
 ///
 #ifndef __ENT_FEED_DBU_H__
@@ -137,7 +138,7 @@ int     writeOutput(FILE *fp, const char *ord_type, const char *key_acc, const c
 // === functions for daily entity feeding ===
 int     getSubGroupAsFrmGroupId(const char *cust_cat, const char *cust_sub_cat, int active_day, int port_act_day);
 int     procOrderFms(char out_ini[][SIZE_ITEM_L], char comm_ini[][SIZE_ITEM_L], char defgrp_ini[][SIZE_ITEM_L], char feed_flg);
-int     prepareRecord(char *ord_type, char *mob_no, char *cus_acc, char *bill_acc, char *dealer_cd, char *loc_cd, char *row_id, FILE *fp, int day2chng, char feed_flg);
+int     prepareRecord(char *ord_type, char *mob_no, char *cus_acc, char *bill_acc, char *dealer_cd, char *row_id, FILE *fp, int day2chng, char feed_flg);
 int     getCustAcc(char *ord_type, char *cus_acc, FILE *fp);
 int     getMobileSub(char *ord_type, char *mob_no, char *cus_acc, char *bill_acc, FILE *fp, int day2chng);
 // int     getMobileInfo(char *mob_no, char *cus_acc, char *bill_acc);
@@ -173,6 +174,9 @@ void    getEntityTypeId();
 void    createHtmlFromTemplate(char mail_ini[][SIZE_ITEM_L], int temp_type_idx, int val1, int val2);
 
 int     getCustAccFromMobile(char *mob_no, char *cus_acc);
+
+// === function for dealing with all dealer ===
+int     procDealer(char out_ini[][SIZE_ITEM_L], char comm_ini[][SIZE_ITEM_L]);
 
 #ifdef  __cplusplus
     }
