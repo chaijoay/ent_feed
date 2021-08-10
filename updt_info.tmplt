@@ -1,0 +1,28 @@
+<html>
+
+<head>
+    <meta http-equiv=Content-Type content="text/html; charset=windows-874">
+</head>
+
+<body lang=EN-US>
+
+<p>Subject: [HPFRM] - Update group profile</p>
+<p>&nbsp;</p>
+<p><span lang=TH style='font-size:14.0pt;font-family:"Tahoma"'>ประจำวันที่ </span>$TODAY_YMD</p>
+<span lang=TH style='font-size:14.0pt;font-family:"Lucida Sans Typewritter"'>
+<p>
+&nbsp;&nbsp;&nbsp;Total record New user (0-3) to Normal : &nbsp; $TOTAL_VAL1
+<br>
+&nbsp;&nbsp;&nbsp;Total record Business New (0-3) to Business Normal : &nbsp; $TOTAL_VAL2
+</p>
+<p>&nbsp;</p>
+<p>
+Thank you and Best regards<br>
+HPFRM Admin
+</p>
+</span>
+
+</body>
+
+</html>
+

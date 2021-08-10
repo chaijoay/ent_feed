@@ -156,18 +156,20 @@ void    updAcctForUnkSub();
 
 
 // === functions for update subscriber group from entry level to normal user level ===
-void    changeGroupOfMatureSubscribers(char out_ini[][SIZE_ITEM_L], char comm_ini[][SIZE_ITEM_L]);
+void    changeGroupOfMatureSubscribers(char out_ini[][SIZE_ITEM_L], char comm_ini[][SIZE_ITEM_L], char mail_ini[][SIZE_ITEM_L]);
 int     changeMatureSubscriberGrp(int entid, const char *ent_name, int partid, int old_gid, int new_gid, const char *grp_col, char out_ini[][SIZE_ITEM_L], char comm_ini[][SIZE_ITEM_L]);
 
 
 // === functions for reconcile between SUBFNT and ERM ===
-int     checkForReconcile();
+int     checkForReconcile(char mail_ini[][SIZE_ITEM_L]);
 int     entIdToFragId(int entid);
 int     strToFragIdEntMap(const char *key_value);
 
 // === functions for purge old data from Order_FMS table at SUBFNT ===
 void    purgeTable(int purge_day);
 void    getEntityTypeId();
+
+void    createHtmlFromTemplate(char mail_ini[][SIZE_ITEM_L], int temp_type_idx, int val1, int val2);
 
 #ifdef  __cplusplus
     }

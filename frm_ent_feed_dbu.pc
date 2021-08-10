@@ -1499,20 +1499,21 @@ void updAcctForUnkSub()
 
 // === functions for update subscriber group from entry level to normal user level ===
 
-void changeGroupOfMatureSubscribers(char out_ini[][SIZE_ITEM_L], char comm_ini[][SIZE_ITEM_L])
+void changeGroupOfMatureSubscribers(char out_ini[][SIZE_ITEM_L], char comm_ini[][SIZE_ITEM_L], char mail_ini[][SIZE_ITEM_L])
 {
-    int i, nCurGid, nNewGid, nPartId, nEnTypeId, rec_cnt;
+    int i, nCurGid, nNewGid, nPartId, nEnTypeId;
     char szGrpCol[SIZE_ITEM_T];
     char szEntName[50];
     char szTemp[SIZE_ITEM_X];
-    char szEmailContent[SIZE_ITEM_X];
+    //char szEmailContent[SIZE_ITEM_X];
+    int rec_cnt[TWO];
 
     memset(szGrpCol, 0x00, sizeof(szGrpCol));
-    memset(szEmailContent, 0x00, sizeof(szEmailContent));
+    //memset(szEmailContent, 0x00, sizeof(szEmailContent));
 
     for ( i=0; i<TWO; i++ ) {
 
-        rec_cnt = 0;
+        rec_cnt[i] = 0;
         nCurGid = -1;
         nNewGid = -1;
         nPartId = -1;
@@ -1523,23 +1524,21 @@ void changeGroupOfMatureSubscribers(char out_ini[][SIZE_ITEM_L], char comm_ini[]
         getGroupId(gszEntryGrp[i], &nCurGid, &nPartId, &nEnTypeId, szEntName, GRP_ASSG_ALL, CUS_GRP);    /*assing all value*/
         getGroupId(gszNormalGrp[i], &nNewGid, &nPartId, &nEnTypeId, szEntName, GRP_COND_QRY, CUS_GRP);    /*use as query condition*/
         getGroupColName(nEnTypeId, szGrpCol);
-        rec_cnt = changeMatureSubscriberGrp(nEnTypeId, szEntName, nPartId, nCurGid, nNewGid, szGrpCol, out_ini, comm_ini);
+        rec_cnt[i] = changeMatureSubscriberGrp(nEnTypeId, szEntName, nPartId, nCurGid, nNewGid, szGrpCol, out_ini, comm_ini);
 
-        if ( rec_cnt > 0 ) {
-            memset(szEmailContent, 0x00, sizeof(szEmailContent));
-            memset(szTemp, 0x00, sizeof(szTemp));
-            sprintf(szEmailContent, "Subject : [HPFRM] - Update Group Profile\n ประจำวันที่ %s", getSysDTM(DTM_DMY_FORM));
-            sprintf(szTemp, "Total record %s to %s = %d", gszEntryGrp[i], gszNormalGrp[i], rec_cnt);
-            writeLog(LOG_INF, "Total record %s to %s = %d", gszEntryGrp[i], gszNormalGrp[i], rec_cnt);
-        }
-        else {
-            writeLog(LOG_INF, "No group changes at this moment");
-        }
+        //if ( rec_cnt[i] > 0 ) {
+            //memset(szEmailContent, 0x00, sizeof(szEmailContent));
+            //memset(szTemp, 0x00, sizeof(szTemp));
+            //sprintf(szEmailContent, "Subject : [HPFRM] - Update Group Profile\n ประจำวันที่ %s", getSysDTM(DTM_DMY_FORM));
+            //sprintf(szTemp, "Total record %s to %s = %d", gszEntryGrp[i], gszNormalGrp[i], rec_cnt);
+        writeLog(LOG_INF, "Total record %s to %s = %d", gszEntryGrp[i], gszNormalGrp[i], rec_cnt[i]);
+        //}
+        //else
+        //  writeLog(LOG_INF, "No group %s changes at this moment", gszEntryGrp[i]);
+        //}
     }
 
-    if ( *szEmailContent != '\0' ) {    // have subscriber's group changing
-
-    }
+    createHtmlFromTemplate(mail_ini, E_UPDT_TMPLT, rec_cnt[0], rec_cnt[1]);
 
 }
 
@@ -1649,7 +1648,7 @@ int changeMatureSubscriberGrp(int entid, const char *ent_name, int partid, int o
 
 // === functions for reconcile between SUBFNS and ERM ===
 
-int checkForReconcile()
+int checkForReconcile(char mail_ini[][SIZE_ITEM_L])
 {
 
     VARCHAR szSql[SIZE_BUFF];
@@ -1664,7 +1663,6 @@ int checkForReconcile()
     char rowid[SIZE_ITEM_T];
     char key_value[50];
     //char token[50];
-    char szEmailContent[SIZE_ITEM_X];
     int  nEntId = -1;
     int  rec_not_found = FALSE;
     //int  sumRecCnt = 0;
@@ -1830,11 +1828,8 @@ int checkForReconcile()
     EXEC SQL AT SFN_DB CLOSE orcReconSfnCur;
     EXEC SQL AT SFN_DB COMMIT;
 
-    memset(szEmailContent, 0x00, sizeof(szEmailContent));
-    sprintf(szEmailContent, "Subject : [HPFRM] - Reconcile Entity (SubFntDb vs HPFRM)\n" \
-                            "ประจำวันที่ %s \n\n" \
-                            "Total record : %d (ORDER_FMS)\n" \
-                            "Total missing: %d (ENTITY)\n\nHPFRM Admin\n", getSysDTM(DTM_DMY_FORM), nNumOrderFmsRec, nNumMissErmRec);
+    createHtmlFromTemplate(mail_ini, E_RECO_TMPLT, nNumOrderFmsRec, nNumMissErmRec);
+
     return nNumMissErmRec;
 }
 
@@ -1923,5 +1918,57 @@ void getEntityTypeId()
             break;
         }
         EXEC SQL AT ERM_DB CLOSE orcEntIdCur;
+    }
+}
+
+void createHtmlFromTemplate(char mail_ini[][SIZE_ITEM_L], int temp_type_idx, int val1, int val2)
+{
+    const int _pref = 1;
+    const int _outf = 2;
+    if ( access(mail_ini[temp_type_idx], F_OK|R_OK) == SUCCESS ) {
+        char file_name[SIZE_ITEM_L], line[SIZE_BUFF], line_swp[SIZE_BUFF];
+        char dtm[SIZE_ITEM_T], szVal1[10], szVal2[10];
+        FILE *src = NULL, *dst = NULL;
+
+        strcpy(dtm, getSysDTM(DTM_DMY_FORM));
+        sprintf(szVal1, "%d", val1);
+        sprintf(szVal2, "%d", val2);
+        sprintf(file_name, "%s/%s%s", mail_ini[temp_type_idx+_outf], mail_ini[temp_type_idx+_pref], getSysDTM(DTM_DATE_TIME));
+
+        src = fopen(mail_ini[temp_type_idx], "r");
+        dst = fopen(file_name, "w");
+
+        if ( src != NULL && dst != NULL ) {
+            memset(line, 0x00, sizeof(line));
+            memset(line_swp, 0x00, sizeof(line_swp));
+            while( fgets(line, SIZE_BUFF, src) != NULL ) {
+                if ( strstr(line, "$TODAY_YMD") != NULL ) {
+                    strcpy(line_swp, strReplaceAll(line, "$TODAY_YMD", dtm));
+                }
+                else if ( strstr(line, "$TOTAL_VAL1") != NULL ) {
+                    strcpy(line_swp, strReplaceAll(line, "$TOTAL_VAL1", szVal1));
+                }
+                else if ( strstr(line, "$TOTAL_VAL2") != NULL ) {
+                    strcpy(line_swp, strReplaceAll(line, "$TOTAL_VAL2", szVal2));
+                }
+                else {
+                    strcpy(line_swp, line);
+                }
+                fprintf(dst, "%s", line_swp);
+            }
+        }
+        if ( src != NULL ) {
+            fclose(src);
+        }
+        if ( dst != NULL ) {
+            fclose(dst);
+        }
+        memset(line, 0x00, sizeof(line));
+        sprintf(line, "mv %s %s.html", file_name, file_name);
+        system(line);
+        writeLog(LOG_INF, "mail info file : %s.html", file_name);
+    }
+    else {
+        writeLog(LOG_WRN, "cannot open read template %s (%s)", mail_ini[temp_type_idx], strerror(errno));
     }
 }

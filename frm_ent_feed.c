@@ -51,7 +51,8 @@ const char gszIniStrSection[E_NOF_SECTION][SIZE_ITEM_T] = {
     "COMMON",
     "DB_CONNECTION_SFN",
     "DB_CONNECTION_ERM",
-    "DEFAULT_GROUP"
+    "DEFAULT_GROUP",
+    "INFORM_HTML_LETTER"
 };
 
 const char gszIniStrOutput[E_NOF_PAR_OUTPUT][SIZE_ITEM_T] = {
@@ -88,11 +89,22 @@ const char gszIniStrDefGrp[E_NOF_PAR_DEFGRP][SIZE_ITEM_T] = {
     "DEALER"
 };
 
+const char gszIniStrInfMail[E_NOF_PAR_INF_MAIL][SIZE_ITEM_T] = {
+    "RECONC_TEMPLATE_FILE",
+    "RECONC_PREFIX_OUTF",
+    "RECONC_OUTPUT_DIR",
+    "UPDATE_TEMPLATE_FILE",
+    "UPDATE_PREFIX_OUTF",
+    "UPDATE_OUTPUT_DIR"
+};
+
+
 char gszIniParOutput[E_NOF_PAR_OUTPUT][SIZE_ITEM_L];
 char gszIniParCommon[E_NOF_PAR_COMMON][SIZE_ITEM_L];
 char gszIniParDbConnSfn[E_NOF_PAR_DBCONN_SFN][SIZE_ITEM_L];
 char gszIniParDbConnErm[E_NOF_PAR_DBCONN_ERM][SIZE_ITEM_L];
 char gszIniParDefGrp[E_NOF_PAR_DEFGRP][SIZE_ITEM_L];
+char gszIniParInfMail[E_NOF_PAR_INF_MAIL][SIZE_ITEM_L];
 
 int main(int argc, char *argv[])
 {
@@ -155,13 +167,13 @@ int main(int argc, char *argv[])
     }
     else if ( gzMode == MODE_RECONCL ) {
         writeLog(LOG_INF, "starting with Reconciliation Mode");
-        checkForReconcile();
+        checkForReconcile(gszIniParInfMail);
         writeLog(LOG_INF, "preparing output record of the reconciliation");
         procOrderFms(gszIniParOutput, gszIniParCommon, gszIniParDefGrp, FLG_CMPL_REC);
     }
     else if ( gzMode == MODE_CHN_GRP ) {
         writeLog(LOG_INF, "starting with Update Subscribers Group Mode");
-        changeGroupOfMatureSubscribers(gszIniParOutput, gszIniParCommon);
+        changeGroupOfMatureSubscribers(gszIniParOutput, gszIniParCommon, gszIniParInfMail);
     }
     else if ( gzMode == MODE_PRG_TAB ) {
         writeLog(LOG_INF, "starting with Purge Order_FMS table Mode");
@@ -280,6 +292,11 @@ int readConfig(int argc, char *argv[])
     // Read config of Default Group Section
     for ( key = 0; key < E_NOF_PAR_DEFGRP; key++ ) {
         ini_gets(gszIniStrSection[E_DEF_GRP], gszIniStrDefGrp[key], "NA", gszIniParDefGrp[key], sizeof(gszIniParDefGrp[key]), gszIniFile);
+    }
+
+    // Read config of Info Mail Section
+    for ( key = 0; key < E_NOF_PAR_INF_MAIL; key++ ) {
+        ini_gets(gszIniStrSection[E_INF_MAIL], gszIniStrInfMail[key], "NA", gszIniParInfMail[key], sizeof(gszIniParInfMail[key]), gszIniFile);
     }
 
     return SUCCESS;
@@ -411,6 +428,10 @@ void makeIni()
     // Write config of DB Section
     for ( key = 0; key < E_NOF_PAR_DBCONN_ERM; key++ ) {
         ini_puts(gszIniStrSection[E_DBCONN_ERM], gszIniStrDbConnErm[key], tmp_itm, tmp_ini);
+    }
+
+    for ( key = 0; key < E_NOF_PAR_INF_MAIL; key++ ) {
+        ini_puts(gszIniStrSection[E_INF_MAIL], gszIniStrInfMail[key], tmp_itm, tmp_ini);
     }
 
     sprintf(cmd, "mv %s %s.ini", tmp_ini, tmp_ini);

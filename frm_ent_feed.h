@@ -24,7 +24,7 @@
 #endif
 
 #define _APP_NAME_          "frm_ent_feed"
-#define _APP_VERS_          "1.0.1"
+#define _APP_VERS_          "1.1.0"
 #define _MAX_REC_FILE_      1000000
 
 
@@ -36,6 +36,7 @@ typedef enum {
     E_DBCONN_SFN,
     E_DBCONN_ERM,
     E_DEF_GRP,
+    E_INF_MAIL,
     E_NOF_SECTION
 } E_INI_SECTION;
 
@@ -76,11 +77,21 @@ typedef enum {
 } E_INI_DBCONN_ERM_SEC;
 
 typedef enum {
-    E_CUSTOMER,
+    E_CUSTOMER = 0,
     E_MOBILE,
     E_DEALER,
     E_NOF_PAR_DEFGRP
 } E_INI_DEF_GROUP;
+
+typedef enum {
+    E_RECO_TMPLT = 0,
+    E_RECO_PREF,
+    E_RECO_ODIR,
+    E_UPDT_TMPLT,
+    E_UPDT_PREF,
+    E_UPDT_ODIR,
+    E_NOF_PAR_INF_MAIL
+} E_INI_INF_MAIL;
 
 
 int     readConfig(int argc, char *argv[]);
