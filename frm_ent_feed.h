@@ -24,7 +24,7 @@
 #endif
 
 #define _APP_NAME_          "frm_ent_feed"
-#define _APP_VERS_          "1.0"
+#define _APP_VERS_          "1.0.1"
 #define _MAX_REC_FILE_      1000000
 
 

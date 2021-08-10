@@ -32,6 +32,8 @@ EXEC SQL INCLUDE SQLCA;
     // VARCHAR gv_vcFrmCConnect[40];
 // EXEC SQL END DECLARE SECTION;
 
+char gzME[] = "HPFRM";
+
 const char gszFrmGroup[E_NOF_GRP][SIZE_ITEM_T] = {
     "BUSINESS NEW (0-3)",
     "BUSINESS NORMAL",
@@ -43,12 +45,12 @@ const char gszFrmGroup[E_NOF_GRP][SIZE_ITEM_T] = {
     "NORMAL"
 };
 
-const char gszCurGrp[TWO][SIZE_ITEM_T] = {
+const char gszEntryGrp[TWO][SIZE_ITEM_T] = {
     "NEW USER (0-3)",
     "BUSINESS NEW (0-3)"
 };
 
-const char gszNewGrp[TWO][SIZE_ITEM_T] = {
+const char gszNormalGrp[TWO][SIZE_ITEM_T] = {
     "NORMAL",
     "BUSINESS NORMAL"
 };
@@ -567,7 +569,7 @@ int writeOutput(FILE *fp, const char *ord_type, const char *key_acc, const char 
 
 // === functions for daily entity feeding ===
 
-int getSubGroupAsFrmGroupId(const char *cust_cat, const char *cust_sub_cat, int active_day)
+int getSubGroupAsFrmGroupId(const char *cust_cat, const char *cust_sub_cat, int active_day, int port_act_day)
 {
     char grp_name[SIZE_ITEM_T];
     char ent_name[50];
@@ -575,6 +577,14 @@ int getSubGroupAsFrmGroupId(const char *cust_cat, const char *cust_sub_cat, int 
     int partid = -1;
     int entid = -1;
     int day2mature = DAY_TO_CHN_GROUP;
+    int real_active_day;
+
+    if ( port_act_day <= 0 ) {
+        real_active_day = active_day;
+    }
+    else {
+        real_active_day = port_act_day;
+    }
 
     memset(grp_name, 0x00, sizeof(grp_name));
 
@@ -583,7 +593,7 @@ int getSubGroupAsFrmGroupId(const char *cust_cat, const char *cust_sub_cat, int 
             sprintf(grp_name, "%s", gszFrmGroup[E_CORP]);
         }
         else {
-            if ( active_day >= day2mature ) {
+            if ( real_active_day >= day2mature ) {
                 sprintf(grp_name, "%s", gszFrmGroup[E_BIZ_NOR]);
             }
             else {
@@ -601,7 +611,7 @@ int getSubGroupAsFrmGroupId(const char *cust_cat, const char *cust_sub_cat, int 
         sprintf(grp_name, "%s", gszFrmGroup[E_INHS]);
     }
     else if ( *cust_cat == 'R' ) {
-        if ( active_day >= day2mature ) {
+        if ( real_active_day >= day2mature ) {
             sprintf(grp_name, "%s", gszFrmGroup[E_NORMAL]);
         }
         else {
@@ -628,6 +638,7 @@ int procOrderFms(char out_ini[][SIZE_ITEM_L], char comm_ini[][SIZE_ITEM_L], char
     char rowid[SIZE_ITEM_T];
     int sumRecCnt = 0, fileRecCnt = 0, totWrtRec = 0;
     int part_id, ent_id;
+    int day2grp_chng_conv = 0;
     char ent_name[50];
     char file_dtm[SIZE_DATE_TIME+1];
     char file_fname[SIZE_ITEM_L];
@@ -641,10 +652,10 @@ int procOrderFms(char out_ini[][SIZE_ITEM_L], char comm_ini[][SIZE_ITEM_L], char
     getGroupId(defgrp_ini[E_MOBILE]  , &gnDefGrpMob, &part_id, &ent_id, ent_name, GRP_ASSG_ALL, SYS_GRP);   /* assing all value but will only use group id */
 
     if ( fedflg == FLG_CMPL_FED ) { // Normal gen output for feeding
-        strcpy((char*)szSql.arr, "SELECT ORDERTYPE, NVL(MOBILE_NO, ' '), NVL(CUSTOMERACCOUNT, ' '), NVL(BILLINGACCOUNT, ' '), NVL(DEALER_CD, ' '), NVL(LOCATION_CD, ' '), ROWID FROM ORDER_FMS WHERE FLAG IS NULL ORDER BY ORDERTYPE, ORDERDATE");
+        strcpy((char*)szSql.arr, "SELECT ORDERTYPE, NVL(MOBILE_NO, ' '), NVL(CUSTOMERACCOUNT, ' '), NVL(BILLINGACCOUNT, ' '), NVL(DEALER_CD, ' '), NVL(LOCATION_CD, ' '), CASE WHEN CONVERT_DATE IS NULL THEN 0 ELSE (TRUNC(SYSDATE) - CONVERT_DATE) END, ROWID FROM ORDER_FMS WHERE FLAG IS NULL ORDER BY ORDERTYPE, ORDERDATE");
     }
     else { // FLG_CMPL_REC, gen output as a reconciliation result for refeeding
-        sprintf((char*)szSql.arr, "SELECT ORDERTYPE, NVL(MOBILE_NO, ' '), NVL(CUSTOMERACCOUNT, ' '), NVL(BILLINGACCOUNT, ' '), NVL(DEALER_CD, ' '), NVL(LOCATION_CD, ' '), ROWID FROM ORDER_FMS WHERE FLAG = '%c' ORDER BY ORDERTYPE, ORDERDATE", FLG_2B_RECON);
+        sprintf((char*)szSql.arr, "SELECT ORDERTYPE, NVL(MOBILE_NO, ' '), NVL(CUSTOMERACCOUNT, ' '), NVL(BILLINGACCOUNT, ' '), NVL(DEALER_CD, ' '), NVL(LOCATION_CD, ' '), CASE WHEN CONVERT_DATE IS NULL THEN 0 ELSE (TRUNC(SYSDATE) - CONVERT_DATE) END, ROWID FROM ORDER_FMS WHERE FLAG = '%c' ORDER BY ORDERTYPE, ORDERDATE", FLG_2B_RECON);
     }
     szSql.len = strlen((char*)szSql.arr);
     writeLog(LOG_DB1, (char*)szSql.arr);
@@ -683,6 +694,7 @@ int procOrderFms(char out_ini[][SIZE_ITEM_L], char comm_ini[][SIZE_ITEM_L], char
                 :billingaccount,
                 :dealer_cd,
                 :location_cd,
+                :day2grp_chng_conv,
                 :rowid;
 
         if ( sqlca.sqlcode != SUCCESS ) {
@@ -735,12 +747,12 @@ int procOrderFms(char out_ini[][SIZE_ITEM_L], char comm_ini[][SIZE_ITEM_L], char
                 result = FAILED;
                 break;
             }
-            if ( prepareRecord(ordertype, mobile_no, customeraccount, billingaccount, dealer_cd, location_cd, rowid, ofp, fedflg) == SUCCESS ) {
+            if ( prepareRecord(ordertype, mobile_no, customeraccount, billingaccount, dealer_cd, location_cd, rowid, ofp, day2grp_chng_conv, fedflg) == SUCCESS ) {
                 fileRecCnt++;
             }
         }
         else {      // same order type
-            if ( prepareRecord(ordertype, mobile_no, customeraccount, billingaccount, dealer_cd, location_cd, rowid, ofp, fedflg) ==  SUCCESS ) {
+            if ( prepareRecord(ordertype, mobile_no, customeraccount, billingaccount, dealer_cd, location_cd, rowid, ofp, day2grp_chng_conv, fedflg) ==  SUCCESS ) {
                 fileRecCnt++;
             }
         }
@@ -776,7 +788,7 @@ int procOrderFms(char out_ini[][SIZE_ITEM_L], char comm_ini[][SIZE_ITEM_L], char
 
 }
 
-int prepareRecord(char *ord_type, char *mob_no, char *cus_acc, char *bill_acc, char *dealer_cd, char *loc_cd, char *row_id, FILE *fp, char feed_flg)
+int prepareRecord(char *ord_type, char *mob_no, char *cus_acc, char *bill_acc, char *dealer_cd, char *loc_cd, char *row_id, FILE *fp, int day2chng, char feed_flg)
 {
 
     int result = FAILED;
@@ -789,7 +801,7 @@ int prepareRecord(char *ord_type, char *mob_no, char *cus_acc, char *bill_acc, c
         // business requirement pending ...
     }
     else if ( strcmp(ord_type, INS_MOB) == 0 ) {   // Insert/Update MobileSubscriber
-        result = getMobileSub(ord_type, mob_no, cus_acc, bill_acc, fp);
+        result = getMobileSub(ord_type, mob_no, cus_acc, bill_acc, fp, day2chng);
     }
     else if ( strcmp(ord_type, DEL_CUS) == 0 && strlen(cus_acc) > 0 ) {   // Delete CustomerAccount
         result = (writeOutput(fp, ord_type, cus_acc, "", "") < 0 ? FAILED : SUCCESS);
@@ -807,7 +819,7 @@ int prepareRecord(char *ord_type, char *mob_no, char *cus_acc, char *bill_acc, c
     if ( result == SUCCESS ) {
         updateProcRecord(row_id, feed_flg);
     }
-    else if ( feed_flg == FLG_CMPL_REC ) {  // update error fro reconcile step (in case unable to get subscriber information)
+    else if ( feed_flg == FLG_CMPL_REC ) {  // update error for reconcile step (in case unable to get subscriber information)
         updateProcRecord(row_id, FLG_RECON_ERR);
     }
 
@@ -894,7 +906,7 @@ int getCustAcc(char *ord_type, char *cus_acc, FILE *fp)
 
 }
 
-int getMobileSub(char *ord_type, char *mob_no, char *cus_acc, char *bill_acc, FILE *fp)
+int getMobileSub(char *ord_type, char *mob_no, char *cus_acc, char *bill_acc, FILE *fp, int day2chng)
 {
 
     char _status[25+1];
@@ -906,36 +918,43 @@ int getMobileSub(char *ord_type, char *mob_no, char *cus_acc, char *bill_acc, FI
     int  _gid = -1;
     char oerr[SIZE_ITEM_M];
 
-    getCustAcc(ord_type, cus_acc, NULL);
-    EXEC SQL AT SFN_DB  SELECT  NVL(IMSI, ' '),
-                                NVL(TO_CHAR(ACTIVATION_DATE, 'YYYYMMDD'), ' '),
-                                NVL(STATUS, ' '),
-                                NVL(TO_CHAR(STATUSDATE, 'YYYYMMDD'), ' '),
-                                NVL(DEALER_NAME, ' '),
-                                NVL(DEALER_CODE, ' '),
-                                NVL(COMPANY_BAND, ' '),
-                                NVL(NETWORKTYPE, ' '),
-                                NVL(TO_CHAR(IRREGDATE, 'YYYYMMDD'), ' '),
-                                NVL(SEGMENT, ' '),
-                                NVL(CHARGE_TYPE, ' '),
-                                CASE WHEN ACTIVATION_DATE IS NULL THEN 1 ELSE (TRUNC(SYSDATE) - ACTIVATION_DATE) END
+    char cust_acct[SIZE_ITEM_T];
+    char bill_acct[SIZE_ITEM_T];
+
+    memset(cust_acct, 0x00, sizeof(cust_acct));
+    memset(bill_acct, 0x00, sizeof(bill_acct));
+
+    EXEC SQL AT SFN_DB  SELECT  NVL(IMSI, ' ')
+                                , NVL(TO_CHAR(ACTIVATION_DATE, 'YYYYMMDD'), ' ')
+                                , NVL(STATUS, ' ')
+                                , NVL(TO_CHAR(STATUSDATE, 'YYYYMMDD'), ' ')
+                                , NVL(DEALER_NAME, ' ')
+                                , NVL(DEALER_CODE, ' ')
+                                , NVL(COMPANY_BAND, ' ')
+                                , NVL(NETWORKTYPE, ' ')
+                                , NVL(TO_CHAR(IRREGDATE, 'YYYYMMDD'), ' ')
+                                , NVL(SEGMENT, ' ')
+                                , NVL(CHARGE_TYPE, ' ')
+                                , CASE WHEN ACTIVATION_DATE IS NULL THEN 1 ELSE (TRUNC(SYSDATE) - ACTIVATION_DATE) END
+                                , CUSTOMERACCOUNT
+                                , BILLINGACCOUNT
                             INTO
-                                :gzImsi,
-                                :gzActDate,
-                                :_status,
-                                :gzMobStatDate,
-                                :gzDealerName,
-                                :gzDealerCode,
-                                :_company,
-                                :_product_code,
-                                :gzIrRegDate,
-                                :_segment,
-                                :_charge_type,
-                                :_active_day
+                                :gzImsi
+                                , :gzActDate
+                                , :_status
+                                , :gzMobStatDate
+                                , :gzDealerName
+                                , :gzDealerCode
+                                , :_company
+                                , :_product_code
+                                , :gzIrRegDate
+                                , :_segment
+                                , :_charge_type
+                                , :_active_day
+                                , :cust_acct
+                                , :bill_acct
                         FROM    MOBILE_ACCOUNT
-                        WHERE   MOBILE_NO = :mob_no AND
-                                CUSTOMERACCOUNT = :cus_acc AND
-                                BILLINGACCOUNT = :bill_acc;
+                        WHERE   MOBILE_NO = :mob_no;
     if ( sqlca.sqlcode == SUCCESS ) {
         strcpy(gzImsi, trimStr(gzImsi));
         strcpy(gzActDate, trimStr(gzActDate));
@@ -949,14 +968,17 @@ int getMobileSub(char *ord_type, char *mob_no, char *cus_acc, char *bill_acc, FI
         strcpy(_segment, trimStr(_segment));
         strcpy(_charge_type, trimStr(_charge_type));
         strcpy(_company, trimStr(_company));
+        strcpy(cust_acct, trimStr(cust_acct));
+        strcpy(bill_acct, trimStr(bill_acct));
 
         getLov(E_MOBSTATUS, _status, gzMobStat);
         getLov(E_NETTYPE, _product_code, gzProductCode);
         getLov(E_MOBSEGMENT, _segment, gzMobSegment);
         getLov(E_COMPANY, _company, gzCompany);
         getLov(E_PAYTYPE, _charge_type, gzPayType);
+        getCustAcc(ord_type, cust_acct, NULL);
 
-        _gid = getSubGroupAsFrmGroupId(gzCustCat, gzCustSubCat, _active_day);
+        _gid = getSubGroupAsFrmGroupId(gzCustCat, gzCustSubCat, _active_day, day2chng);
         if ( _gid <= 0 ) {
             sprintf(gzGrpId, "%d", gnDefGrpMob);
             writeLog(LOG_WRN, "unable to get group id for cust_id = '%s', mob_no = '%s' use default %d", cus_acc, mob_no, gnDefGrpMob);
@@ -965,29 +987,29 @@ int getMobileSub(char *ord_type, char *mob_no, char *cus_acc, char *bill_acc, FI
             sprintf(gzGrpId, "%d", _gid);
         }
 
-        if ( getBillingInfo(cus_acc, bill_acc) != SUCCESS ) {
+        if ( getBillingInfo(cust_acct, bill_acct) != SUCCESS ) {
             return FAILED;
         }
 
         getContractPhone(mob_no);
 
         int nMaxPaid = 1;
-        EXEC SQL AT SFN_DB SELECT  NVL(INV_MAX_PAID*100, 1) INTO :nMaxPaid FROM INVOICE_BALANCE_BA WHERE BILLING_ACCOUNT = :bill_acc;
+        EXEC SQL AT SFN_DB SELECT  NVL(INV_MAX_PAID*100, 1) INTO :nMaxPaid FROM INVOICE_BALANCE_BA WHERE BILLING_ACCOUNT = :bill_acct;
         if ( sqlca.sqlcode == SUCCESS ) {
             sprintf(gzMaxPaid, "%d", (nMaxPaid <= 0 ? 1 : nMaxPaid) );
         }
         else {
             char oerr[SIZE_ITEM_M];
             strcpy(oerr, trimStr(sqlca.sqlerrm.sqlerrmc));
-            writeLog(LOG_WRN, "getMobileSub: INVOICE_BALANCE_BA(%s) Ora(%d) - %s", bill_acc, sqlca.sqlcode, oerr);
+            writeLog(LOG_WRN, "getMobileSub: INVOICE_BALANCE_BA(%s) Ora(%d) - %s", bill_acct, sqlca.sqlcode, oerr);
         }
 
-        return (writeOutput(fp, ord_type, mob_no, cus_acc, bill_acc) < 0 ? FAILED : SUCCESS);
+        return (writeOutput(fp, ord_type, mob_no, cust_acct, bill_acct) < 0 ? FAILED : SUCCESS);
 
     }
     else if ( sqlca.sqlcode != NOT_FOUND ) {
         strcpy(oerr, trimStr(sqlca.sqlerrm.sqlerrmc));
-        writeLog(LOG_ERR, "getMobileSub: query error on MOBILE_ACCOUNT table, Ora(%d) - %s (mob_no %s, bill_acc %s, cus_acc %s)", sqlca.sqlcode, oerr, mob_no, bill_acc, cus_acc);
+        writeLog(LOG_ERR, "getMobileSub: query error on MOBILE_ACCOUNT table, Ora(%d) - %s (mob_no %s, bill_acct %s, cust_acct %s)", sqlca.sqlcode, oerr, mob_no, bill_acct, cust_acct);
         return FAILED;
     }
 
@@ -1093,8 +1115,7 @@ int getBillingInfo(char *cus_acc, char *bill_acc)
                                 :gzBillZipCode,
                                 :gzBillCycle
                             FROM  BILLING_ACCOUNT
-                            WHERE BILLINGACCOUNT = :bill_acc AND
-                                  CUSTOMERACCOUNT = :cus_acc AND ROWNUM = 1;
+                            WHERE BILLINGACCOUNT = :bill_acc AND ROWNUM = 1;
 
     if ( sqlca.sqlcode == SUCCESS ) {
         strcpy(gzBillName, trimStr(gzBillName));
@@ -1105,10 +1126,10 @@ int getBillingInfo(char *cus_acc, char *bill_acc)
         strcpy(gzBillCycle, trimStr(gzBillCycle));
 
         getLov(E_PROVINCE, _province, gzBillProvince);
-        getLov(E_BILLCYCLE, gzBillCycle, gzBillDay);
+        getLov(E_BILLSTART, gzBillCycle, gzBillDay);
 
-        char *p = strchr(gzBillDay, '-');
-        p = '\0';
+        //char *p = strchr(gzBillDay, '-');
+        //p = '\0';
         return SUCCESS;
     }
     else {
@@ -1396,28 +1417,27 @@ int updOrderFmsForUnk(const char *token, const char *key_value)
     VARCHAR szISql[SIZE_BUFF];
     VARCHAR szUSql[SIZE_BUFF];
     char szRecType[2+1];
-    char szUpdater[10];
     int result = SUCCESS;
 
     memset(szRecType, 0x00, sizeof(szRecType));
-    strcpy(szUpdater, "HPFRM");
+
     if ( strstr(token, "CUSTOMER") != NULL ) {
         strcpy(szRecType, INS_CUS);
-        sprintf((char*)szISql.arr, "INSERT INTO ORDER_FMS (ORDERDATE, ORDERTYPE, MOBILE_NO, CUSTOMERACCOUNT, BILLINGACCOUNT, DEALER_CD, LOCATION_CD, FLAG, CREATEDDTM, LASTUPDTM, CREATEDBY, SSEQUENCE) VALUES (SYSDATE, '%s', NULL, '%s', NULL, NULL, NULL, NULL, SYSDATE, SYSDATE, '%s', NULL)", szRecType, key_value, szUpdater);
-        sprintf((char*)szUSql.arr, "UPDATE ORDER_FMS SET CREATEDBY = '%s', LASTUPDTM = SYSDATE, FLAG = NULL WHERE ORDERTYPE = '%s' AND CUSTOMERACCOUNT = '%s'", szUpdater, szRecType, key_value);
+        sprintf((char*)szISql.arr, "INSERT INTO ORDER_FMS (ORDERDATE, ORDERTYPE, MOBILE_NO, CUSTOMERACCOUNT, BILLINGACCOUNT, DEALER_CD, LOCATION_CD, FLAG, CREATEDDTM, LASTUPDTM, CREATEDBY, SSEQUENCE) VALUES (SYSDATE, '%s', NULL, '%s', NULL, NULL, NULL, NULL, SYSDATE, SYSDATE, '%s', NULL)", szRecType, key_value, gzME);
+        sprintf((char*)szUSql.arr, "UPDATE ORDER_FMS SET CREATEDBY = '%s', LASTUPDTM = SYSDATE, FLAG = NULL WHERE ORDERTYPE = '%s' AND CUSTOMERACCOUNT = '%s'", gzME, szRecType, key_value);
     }
     else if ( strstr(token, "MOBILE") != NULL ) {
         strcpy(szRecType, INS_MOB);
-        sprintf((char*)szISql.arr, "INSERT INTO ORDER_FMS (ORDERDATE, ORDERTYPE, MOBILE_NO, CUSTOMERACCOUNT, BILLINGACCOUNT, DEALER_CD, LOCATION_CD, FLAG, CREATEDDTM, LASTUPDTM, CREATEDBY, SSEQUENCE) VALUES (SYSDATE, '%s', '%s', NULL, NULL, NULL, NULL, NULL, SYSDATE, SYSDATE, '%s', NULL)", szRecType, key_value, szUpdater);
-        sprintf((char*)szUSql.arr, "UPDATE ORDER_FMS SET CREATEDBY = '%s', LASTUPDTM = SYSDATE, FLAG = NULL WHERE ORDERTYPE = '%s' AND MOBILE_NO = '%s'", szUpdater, szRecType, key_value);
+        sprintf((char*)szISql.arr, "INSERT INTO ORDER_FMS (ORDERDATE, ORDERTYPE, MOBILE_NO, CUSTOMERACCOUNT, BILLINGACCOUNT, DEALER_CD, LOCATION_CD, FLAG, CREATEDDTM, LASTUPDTM, CREATEDBY, SSEQUENCE) VALUES (SYSDATE, '%s', '%s', NULL, NULL, NULL, NULL, NULL, SYSDATE, SYSDATE, '%s', NULL)", szRecType, key_value, gzME);
+        sprintf((char*)szUSql.arr, "UPDATE ORDER_FMS SET CREATEDBY = '%s', LASTUPDTM = SYSDATE, FLAG = NULL WHERE ORDERTYPE = '%s' AND MOBILE_NO = '%s'", gzME, szRecType, key_value);
     }
     else if ( strstr(token, "DEALER") != NULL ) {
         strcpy(szRecType, INS_DLR);
-        sprintf((char*)szISql.arr, "INSERT INTO ORDER_FMS (ORDERDATE, ORDERTYPE, MOBILE_NO, CUSTOMERACCOUNT, BILLINGACCOUNT, DEALER_CD, LOCATION_CD, FLAG, CREATEDDTM, LASTUPDTM, CREATEDBY, SSEQUENCE) VALUES (SYSDATE, '%s', NULL, NULL, NULL, '%s', NULL, NULL, SYSDATE, SYSDATE, '%s', NULL)", szRecType, key_value, szUpdater);
-        sprintf((char*)szUSql.arr, "UPDATE ORDER_FMS SET CREATEDBY = '%s', LASTUPDTM = SYSDATE, FLAG = NULL WHERE ORDERTYPE = '%s' AND DEALER_CD = '%s'", szUpdater, szRecType, key_value);
+        sprintf((char*)szISql.arr, "INSERT INTO ORDER_FMS (ORDERDATE, ORDERTYPE, MOBILE_NO, CUSTOMERACCOUNT, BILLINGACCOUNT, DEALER_CD, LOCATION_CD, FLAG, CREATEDDTM, LASTUPDTM, CREATEDBY, SSEQUENCE) VALUES (SYSDATE, '%s', NULL, NULL, NULL, '%s', NULL, NULL, SYSDATE, SYSDATE, '%s', NULL)", szRecType, key_value, gzME);
+        sprintf((char*)szUSql.arr, "UPDATE ORDER_FMS SET CREATEDBY = '%s', LASTUPDTM = SYSDATE, FLAG = NULL WHERE ORDERTYPE = '%s' AND DEALER_CD = '%s'", gzME, szRecType, key_value);
     }
     else {
-        writeLog(LOG_WRN, "unknown new entity token of '%s'", token);
+        //writeLog(LOG_WRN, "unknown new entity token of '%s'", token);
         return FAILED;
     }
 
@@ -1448,6 +1468,34 @@ int updOrderFmsForUnk(const char *token, const char *key_value)
 
 }
 
+void updAcctForUnkSub()
+{
+    VARCHAR szSql[SIZE_BUFF];
+    char oerr[SIZE_ITEM_M];
+
+    strcpy((char*)szSql.arr,
+                        "MERGE INTO ORDER_FMS A " \
+                        "USING (SELECT MOBILE_NO, BILLINGACCOUNT, CUSTOMERACCOUNT FROM MOBILE_ACCOUNT) B " \
+                        "ON (A.MOBILE_NO = B.MOBILE_NO) " \
+                        "WHEN MATCHED THEN " \
+                        "   UPDATE SET A.BILLINGACCOUNT = B.BILLINGACCOUNT, A.CUSTOMERACCOUNT = B.CUSTOMERACCOUNT " \
+                        "   WHERE A.BILLINGACCOUNT IS NULL AND A.CUSTOMERACCOUNT IS NULL AND CREATEDBY = 'HPFRM' ");
+    szSql.len = strlen((char*)szSql.arr);
+    writeLog(LOG_DB1, (char*)szSql.arr);
+
+    EXEC SQL AT SFN_DB EXECUTE IMMEDIATE :szSql;
+    if ( sqlca.sqlcode == SUCCESS ) {
+        writeLog(LOG_INF, "updAcctForUnkSub Success");
+    }
+    else {
+        strcpy(oerr, trimStr(sqlca.sqlerrm.sqlerrmc));
+        writeLog(LOG_ERR, "updAcctForUnkSub: unable update ORDER_FMS tables, Ora(%d) - %s", sqlca.sqlcode, oerr);
+    }
+    EXEC SQL AT SFN_DB COMMIT WORK;
+
+}
+
+
 
 // === functions for update subscriber group from entry level to normal user level ===
 
@@ -1472,16 +1520,20 @@ void changeGroupOfMatureSubscribers(char out_ini[][SIZE_ITEM_L], char comm_ini[]
 
         memset(szEntName, 0x00, sizeof(szEntName));
 
-        getGroupId(gszCurGrp[i], &nCurGid, &nPartId, &nEnTypeId, szEntName, GRP_ASSG_ALL, CUS_GRP);    /*assing all value*/
-        getGroupId(gszNewGrp[i], &nNewGid, &nPartId, &nEnTypeId, szEntName, GRP_COND_QRY, CUS_GRP);    /*use as query condition*/
+        getGroupId(gszEntryGrp[i], &nCurGid, &nPartId, &nEnTypeId, szEntName, GRP_ASSG_ALL, CUS_GRP);    /*assing all value*/
+        getGroupId(gszNormalGrp[i], &nNewGid, &nPartId, &nEnTypeId, szEntName, GRP_COND_QRY, CUS_GRP);    /*use as query condition*/
         getGroupColName(nEnTypeId, szGrpCol);
         rec_cnt = changeMatureSubscriberGrp(nEnTypeId, szEntName, nPartId, nCurGid, nNewGid, szGrpCol, out_ini, comm_ini);
 
         if ( rec_cnt > 0 ) {
             memset(szEmailContent, 0x00, sizeof(szEmailContent));
             memset(szTemp, 0x00, sizeof(szTemp));
-            sprintf(szEmailContent, "Subject : [HPFRM] - Update Group Profile\n ๏ฟฝ๏ฟฝะจ๏ฟฝ๏ฟฝัน๏ฟฝ๏ฟฝ๏ฟฝ %s", getSysDTM(DTM_DMY_FORM));
-            sprintf(szTemp, "Total record %s to %s = %d", gszCurGrp[i], gszNewGrp[i], rec_cnt);
+            sprintf(szEmailContent, "Subject : [HPFRM] - Update Group Profile\n ��Ш��ѹ��� %s", getSysDTM(DTM_DMY_FORM));
+            sprintf(szTemp, "Total record %s to %s = %d", gszEntryGrp[i], gszNormalGrp[i], rec_cnt);
+            writeLog(LOG_INF, "Total record %s to %s = %d", gszEntryGrp[i], gszNormalGrp[i], rec_cnt);
+        }
+        else {
+            writeLog(LOG_INF, "No group changes at this moment");
         }
     }
 
@@ -1503,6 +1555,7 @@ int changeMatureSubscriberGrp(int entid, const char *ent_name, int partid, int o
     int day2mature = SEC_IN_DAY * DAY_TO_CHN_GROUP; // 90 * 24 * 60 * 60 = 7,776,000 seconds
 	char cmd[SIZE_ITEM_X];
     long tsysdate = (long)time(NULL);
+    long day2mature_convert = 0;
 
     sprintf((char*)szSql.arr, "SELECT EM.KEY_VALUE" \
             " FROM ENTITY E, ENTITY_MAP EM, GROUP_THRESHOLD GT" \
@@ -1565,11 +1618,15 @@ int changeMatureSubscriberGrp(int entid, const char *ent_name, int partid, int o
         if ( sqlca.sqlcode != SUCCESS ) {
             break;
         }
-        clearFields();
-        sprintf(gzGrpId, "%d", new_gid);
-        strcpy(szKeyVal, trimStr(szKeyVal));
-        rec_cnt++;
-        writeOutput(ofp, ord_type, szKeyVal, "", "");
+
+        EXEC SQL AT SFN_DB SELECT NVL((SYSDATE-CONVERT_DATE) * 24 * 60 * 60 - 25200, 0) INTO :day2mature_convert FROM ORDER_FMS WHERE MOBILE_NO = :szKeyVal;
+        if ( day2mature_convert == 0 || day2mature_convert >= day2mature ) {
+            clearFields();
+            sprintf(gzGrpId, "%d", new_gid);
+            strcpy(szKeyVal, trimStr(szKeyVal));
+            rec_cnt++;
+            writeOutput(ofp, ord_type, szKeyVal, "", "");
+        }
     }
     EXEC SQL AT ERM_DB CLOSE orcFmsGrp;
 
@@ -1775,9 +1832,9 @@ int checkForReconcile()
 
     memset(szEmailContent, 0x00, sizeof(szEmailContent));
     sprintf(szEmailContent, "Subject : [HPFRM] - Reconcile Entity (SubFntDb vs HPFRM)\n" \
-                            "๏ฟฝ๏ฟฝะจ๏ฟฝ๏ฟฝัน๏ฟฝ๏ฟฝ๏ฟฝ %s\n" \
+                            "��Ш��ѹ��� %s \n\n" \
                             "Total record : %d (ORDER_FMS)\n" \
-                            "Total missing: %d (ENTITY)\n", getSysDTM(DTM_DMY_FORM), nNumOrderFmsRec, nNumMissErmRec);
+                            "Total missing: %d (ENTITY)\n\nHPFRM Admin\n", getSysDTM(DTM_DMY_FORM), nNumOrderFmsRec, nNumMissErmRec);
     return nNumMissErmRec;
 }
 

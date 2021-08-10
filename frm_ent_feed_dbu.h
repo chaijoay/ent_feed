@@ -134,11 +134,11 @@ int     writeOutput(FILE *fp, const char *ord_type, const char *key_acc, const c
 
 
 // === functions for daily entity feeding ===
-int     getSubGroupAsFrmGroupId(const char *cust_cat, const char *cust_sub_cat, int active_day);
+int     getSubGroupAsFrmGroupId(const char *cust_cat, const char *cust_sub_cat, int active_day, int port_act_day);
 int     procOrderFms(char out_ini[][SIZE_ITEM_L], char comm_ini[][SIZE_ITEM_L], char defgrp_ini[][SIZE_ITEM_L], char feed_flg);
-int     prepareRecord(char *ord_type, char *mob_no, char *cus_acc, char *bill_acc, char *dealer_cd, char *loc_cd, char *row_id, FILE *fp, char feed_flg);
+int     prepareRecord(char *ord_type, char *mob_no, char *cus_acc, char *bill_acc, char *dealer_cd, char *loc_cd, char *row_id, FILE *fp, int day2chng, char feed_flg);
 int     getCustAcc(char *ord_type, char *cus_acc, FILE *fp);
-int     getMobileSub(char *ord_type, char *mob_no, char *cus_acc, char *bill_acc, FILE *fp);
+int     getMobileSub(char *ord_type, char *mob_no, char *cus_acc, char *bill_acc, FILE *fp, int day2chng);
 // int     getMobileInfo(char *mob_no, char *cus_acc, char *bill_acc);
 void    getContractPhone(char *mob_no);
 int     getBillingInfo(char *cus_acc, char *bill_acc);
@@ -152,6 +152,7 @@ int     updateProcRecord(char *row_id, char feed_flg);
 // === functions for check event-loaded entity to be later update ===
 int     checkTheUnknowSub(const char *def_group_name);
 int     updOrderFmsForUnk(const char *token, const char *key_value);
+void    updAcctForUnkSub();
 
 
 // === functions for update subscriber group from entry level to normal user level ===

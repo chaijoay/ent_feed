@@ -151,6 +151,7 @@ int main(int argc, char *argv[])
     else if ( gzMode == MODE_UPD_UNK ) {    // insert or update to order_fms with flag is null
         writeLog(LOG_INF, "starting with Unknow Entity Check Mode");
         checkTheUnknowSub(gszIniParDefGrp[E_MOBILE]);
+        updAcctForUnkSub();
     }
     else if ( gzMode == MODE_RECONCL ) {
         writeLog(LOG_INF, "starting with Reconciliation Mode");
