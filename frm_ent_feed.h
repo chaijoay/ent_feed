@@ -13,7 +13,8 @@
 /// LAST RELEASE DATE  : 21-Jun-2019
 ///
 /// MODIFICATION HISTORY :
-///     1.0     21-Jun-2019     First Version
+///     1.0         21-Jun-2019     First Version
+///     1.1.1       31-Jul-2019     get customer account for change group process
 ///
 ///
 #ifndef __ENT_FEED_H__
@@ -24,7 +25,7 @@
 #endif
 
 #define _APP_NAME_          "frm_ent_feed"
-#define _APP_VERS_          "1.1.0"
+#define _APP_VERS_          "1.1.1"
 #define _MAX_REC_FILE_      1000000
 
 

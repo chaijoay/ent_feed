@@ -13,7 +13,8 @@
 /// LAST RELEASE DATE  : 21-Jun-2019
 ///
 /// MODIFICATION HISTORY :
-///     1.0     21-Jun-2019     First Version
+///     1.0         21-Jun-2019     First Version
+///     1.1.1       31-Jul-2019     get customer account for change group process
 ///
 ///
 #include "frm_ent_feed_dbu.h"
@@ -78,11 +79,12 @@ const char gszLovType[E_NOF_LOV][SIZE_ITEM_T] = {
 int gnEntTypeId[E_NOF_ETYPE];
 
 // === Common Defined Fields ===
+char gzCusActDate[9+1];
 // char gzMobNo[15+1];
-char gzImsi[15+1];
-char gzActDate[8+1];
-char gzMobStat[2+1];
-char gzMobStatDate[8+1];
+char gzImsi[30+1];
+char gzMobActDate[9+1];
+char gzMobStat[3+1];
+char gzMobStatDate[9+1];
 char gzGrpId[10+1];
 char gzGrpAssign[1+1];
 // char gzCustAcc[30+1];
@@ -99,15 +101,15 @@ char gzCustZipCode[10+1];
 char gzBillName[100+1];
 char gzBillAddr1[100+1];
 char gzBillAddr2[100+1];
-char gzBillProvince[3+1];
+char gzBillProvince[20+1];
 char gzBillZipCode[10+1];
 char gzBillDay[2+1];
 char gzDealerName[100+1];
 char gzSuspensions[10+1];
 char gzCompany[20+1];
-char gzDealerCode[10+1];
-char gzProductCode[20+1];
-char gzIrRegDate[8+1];
+char gzDealerCode[30+1];
+char gzProductCode[30+1];
+char gzIrRegDate[9+1];
 char gzBillCycle[2+1];
 char gzMobSegment[20+1];
 char gzCustNationality[30+1];
@@ -123,14 +125,14 @@ char gzOrdReason[100+1];
 char gzOrdLocName[100+1];
 char gzOrdLocCode[100+1];
 char gzPaymentType[100+1];
-char gzCustActDate[8+1];
-char gzBillActDate[8+1];
+char gzCustActDate[9+1];
+char gzBillActDate[9+1];
 char gzBlStatus[20+1];
 // char gzChargeType[20+1];
 char gzContPhoneBrandModel[100+1];
-char gzContPhoneEndDate[8+1];
-char gzContPhoneImei[20+1];
-char gzContPhoneStartDate[8+1];
+char gzContPhoneEndDate[9+1];
+char gzContPhoneImei[30+1];
+char gzContPhoneStartDate[9+1];
 int gnDefGrpCus;
 int gnDefGrpMob;
 int gnCommitRec = 1000;
@@ -214,8 +216,9 @@ void clearFields()
 {
     //memset(gzRecType             , 0x00, sizeof(gzRecType));
     //memset(gzMobNo             , 0x00, sizeof(gzMobNo));
+    memset(gzCusActDate          , 0x00, sizeof(gzCusActDate));
     memset(gzImsi                , 0x00, sizeof(gzImsi));
-    memset(gzActDate             , 0x00, sizeof(gzActDate));
+    memset(gzMobActDate          , 0x00, sizeof(gzMobActDate));
     memset(gzMobStat             , 0x00, sizeof(gzMobStat));
     memset(gzMobStatDate         , 0x00, sizeof(gzMobStatDate));
     memset(gzGrpId               , 0x00, sizeof(gzGrpId));
@@ -532,7 +535,7 @@ int writeOutput(FILE *fp, const char *ord_type, const char *key_acc, const char 
             strcpy(cAddr1, strReplaceAll(gzCustAddr1, "|", "-"));
             strcpy(cAddr2, strReplaceAll(gzCustAddr2, "|", "-"));
             result = fprintf(fp, "%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|\n"
-                            , ord_type, gzActDate, key_acc, gzCustName, gzCardType, gzCardId
+                            , ord_type, gzCusActDate, key_acc, gzCustName, gzCardType, gzCardId
                             , gzCustCat, gzCustSubCat, cAddr1, cAddr2, gzCustProvince, gzCustZipCode
                             , gzCustNationality, gzCustContTitle, gzCustContName, gzCustContMobilePhone, gzCustContHomePhone, "0");
             wrcnt = ++iccnt;
@@ -547,7 +550,7 @@ int writeOutput(FILE *fp, const char *ord_type, const char *key_acc, const char 
             strcpy(cAddr1, strReplaceAll(gzCustAddr1, "|", "-"));
             strcpy(cAddr2, strReplaceAll(gzCustAddr2, "|", "-"));
             result = fprintf(fp, "%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|\n"
-                              , ord_type, gzActDate, key_acc, gzMobSegment, gzMobStat
+                              , ord_type, gzMobActDate, key_acc, gzMobSegment, gzMobStat
                               , gzMobStatDate, bill_acc, gzBillCycle, gzBillDay, gzBillName
                               , bAddr1, bAddr2, gzBillProvince, gzBillZipCode, gzCardType
                               , gzCardId, gzCompany, gzContPhoneBrandModel, gzContPhoneEndDate
@@ -630,12 +633,12 @@ int procOrderFms(char out_ini[][SIZE_ITEM_L], char comm_ini[][SIZE_ITEM_L], char
     VARCHAR szSql[SIZE_BUFF];
     char cur_ord_type[SIZE_ITEM_T];
     char ordertype[SIZE_ITEM_T];
-    char mobile_no[SIZE_ITEM_T];
-    char customeraccount[SIZE_ITEM_T];
-    char billingaccount[SIZE_ITEM_T];
-    char dealer_cd[SIZE_ITEM_T];
-    char location_cd[SIZE_ITEM_T];
-    char rowid[SIZE_ITEM_T];
+    char mobile_no[SIZE_ITEM_S];
+    char customeraccount[SIZE_ITEM_S];
+    char billingaccount[SIZE_ITEM_S];
+    char dealer_cd[SIZE_ITEM_S];
+    char location_cd[SIZE_ITEM_S];
+    char rowid[SIZE_ITEM_S];
     int sumRecCnt = 0, fileRecCnt = 0, totWrtRec = 0;
     int part_id, ent_id;
     int day2grp_chng_conv = 0;
@@ -889,7 +892,7 @@ int getCustAcc(char *ord_type, char *cus_acc, FILE *fp)
         getLov(E_CUSTSUBCAT, _custsubcat, gzCustSubCat);
         getLov(E_PROVINCE, _province, gzCustProvince);
 
-        if ( getCustActDate(cus_acc, gzActDate) == SUCCESS ) {
+        if ( getCustActDate(cus_acc, gzCusActDate) == SUCCESS ) {
             if ( fp != NULL ) {
                 return (writeOutput(fp, ord_type, cus_acc, "", "") < 0 ? FAILED : SUCCESS);
             }
@@ -918,8 +921,8 @@ int getMobileSub(char *ord_type, char *mob_no, char *cus_acc, char *bill_acc, FI
     int  _gid = -1;
     char oerr[SIZE_ITEM_M];
 
-    char cust_acct[SIZE_ITEM_T];
-    char bill_acct[SIZE_ITEM_T];
+    char cust_acct[SIZE_ITEM_S];
+    char bill_acct[SIZE_ITEM_S];
 
     memset(cust_acct, 0x00, sizeof(cust_acct));
     memset(bill_acct, 0x00, sizeof(bill_acct));
@@ -940,7 +943,7 @@ int getMobileSub(char *ord_type, char *mob_no, char *cus_acc, char *bill_acc, FI
                                 , BILLINGACCOUNT
                             INTO
                                 :gzImsi
-                                , :gzActDate
+                                , :gzMobActDate
                                 , :_status
                                 , :gzMobStatDate
                                 , :gzDealerName
@@ -957,7 +960,7 @@ int getMobileSub(char *ord_type, char *mob_no, char *cus_acc, char *bill_acc, FI
                         WHERE   MOBILE_NO = :mob_no;
     if ( sqlca.sqlcode == SUCCESS ) {
         strcpy(gzImsi, trimStr(gzImsi));
-        strcpy(gzActDate, trimStr(gzActDate));
+        strcpy(gzMobActDate, trimStr(gzMobActDate));
         strcpy(_status, trimStr(_status));
         strcpy(gzMobStatDate, trimStr(gzMobStatDate));
         strcpy(gzDealerName, trimStr(gzDealerName));
@@ -978,6 +981,7 @@ int getMobileSub(char *ord_type, char *mob_no, char *cus_acc, char *bill_acc, FI
         getLov(E_PAYTYPE, _charge_type, gzPayType);
         getCustAcc(ord_type, cust_acct, NULL);
 
+        writeLog(LOG_DB1, "getMobileSub(MOBILE_ACCOUNT table) mobile'%s', act_date'%s', act_day'%d', num_day_cct'%d'", mob_no, gzMobActDate, _active_day, day2chng);
         _gid = getSubGroupAsFrmGroupId(gzCustCat, gzCustSubCat, _active_day, day2chng);
         if ( _gid <= 0 ) {
             sprintf(gzGrpId, "%d", gnDefGrpMob);
@@ -1192,9 +1196,9 @@ int getBillingInfo(char *cus_acc, char *bill_acc)
 int getCustActDate(char *cus_acc, char *actdate)
 {
 
-    char date[8+1];
+    char date[9+1];
 
-    EXEC SQL AT SFN_DB SELECT TO_CHAR(NVL(MIN(ACTIVATION_DATE), SYSDATE), 'YYYYMMDD') INTO :date
+    EXEC SQL AT SFN_DB SELECT TO_CHAR(NVL(MAX(ACTIVATION_DATE), SYSDATE), 'YYYYMMDD') INTO :date
                        FROM MOBILE_ACCOUNT WHERE CUSTOMERACCOUNT = :cus_acc;
 
     if ( sqlca.sqlcode == SUCCESS ) {
@@ -1214,7 +1218,7 @@ int getCustActDate(char *cus_acc, char *actdate)
 // void getBillActDate(char *bill_acc, char *actdate)
 // {
 
-//     char date[8+1];
+//     char date[9+1];
 //     EXEC SQL AT SFN_DB SELECT TO_CHAR(BILLINGACTIVEDATE, 'YYYYMMDD') INTO :date FROM MOBILE_ACCOUNT_INFO
 //                        WHERE BILLINGACCOUNT = :bill_acc AND ROWNUM = 1;
 //     if ( sqlca.sqlcode == SUCCESS ) {
@@ -1300,7 +1304,7 @@ int checkTheUnknowSub(const char *def_group_name)
 {
 
     VARCHAR szSql[SIZE_BUFF];
-    char key_value[SIZE_ITEM_T];
+    char key_value[SIZE_ITEM_S];
     char token[SIZE_ITEM_T];
     char tmp_token[SIZE_ITEM_T];
     char szGrpCol[SIZE_ITEM_T];
@@ -1555,6 +1559,7 @@ int changeMatureSubscriberGrp(int entid, const char *ent_name, int partid, int o
 	char cmd[SIZE_ITEM_X];
     long tsysdate = (long)time(NULL);
     long day2mature_convert = 0;
+    char _custacct[30+1];
 
     sprintf((char*)szSql.arr, "SELECT EM.KEY_VALUE" \
             " FROM ENTITY E, ENTITY_MAP EM, GROUP_THRESHOLD GT" \
@@ -1624,7 +1629,11 @@ int changeMatureSubscriberGrp(int entid, const char *ent_name, int partid, int o
             sprintf(gzGrpId, "%d", new_gid);
             strcpy(szKeyVal, trimStr(szKeyVal));
             rec_cnt++;
-            writeOutput(ofp, ord_type, szKeyVal, "", "");
+            memset(_custacct, 0x00, sizeof(_custacct));
+            if ( strcmp(ord_type, INS_MOB) == 0 ) {
+                getCustAccFromMobile(szKeyVal, _custacct);
+            }
+            writeOutput(ofp, ord_type, szKeyVal, _custacct, "");
         }
     }
     EXEC SQL AT ERM_DB CLOSE orcFmsGrp;
@@ -1655,13 +1664,13 @@ int checkForReconcile(char mail_ini[][SIZE_ITEM_L])
     VARCHAR szSql2[SIZE_BUFF];
     char ordertype[SIZE_ITEM_T];
     char curr_ordertype[SIZE_ITEM_T];
-    char mobile_no[SIZE_ITEM_T];
-    char customeraccount[SIZE_ITEM_T];
-    char billingaccount[SIZE_ITEM_T];
-    char dealer_cd[SIZE_ITEM_T];
-    char location_cd[SIZE_ITEM_T];
-    char rowid[SIZE_ITEM_T];
-    char key_value[50];
+    char mobile_no[SIZE_ITEM_S];
+    char customeraccount[SIZE_ITEM_S];
+    char billingaccount[SIZE_ITEM_S];
+    char dealer_cd[SIZE_ITEM_S];
+    char location_cd[SIZE_ITEM_S];
+    char rowid[SIZE_ITEM_S];
+    char key_value[SIZE_ITEM_S];
     //char token[50];
     int  nEntId = -1;
     int  rec_not_found = FALSE;
@@ -1853,7 +1862,7 @@ void purgeTable(int purge_day)
         writeLog(LOG_WRN, "purge parameter is %d, no purge", purge_day);
     }
 
-    char date[8+1];
+    char date[9+1];
     EXEC SQL AT SFN_DB SELECT COUNT(1) INTO :count FROM ORDER_FMS WHERE (SYSDATE - LASTUPDTM) > :purge_day;
     if ( sqlca.sqlcode == SUCCESS && count > 0 ) {
         writeLog(LOG_INF, "purging older record");
@@ -1971,4 +1980,27 @@ void createHtmlFromTemplate(char mail_ini[][SIZE_ITEM_L], int temp_type_idx, int
     else {
         writeLog(LOG_WRN, "cannot open read template %s (%s)", mail_ini[temp_type_idx], strerror(errno));
     }
+}
+
+int getCustAccFromMobile(char *mob_no, char *cus_acc)
+{
+
+    char oerr[SIZE_ITEM_M];
+    char cust_acct[SIZE_ITEM_S];
+    memset(cust_acct, 0x00, sizeof(cust_acct));
+
+    EXEC SQL AT SFN_DB  SELECT CUSTOMERACCOUNT INTO :cust_acct
+                        FROM    MOBILE_ACCOUNT
+                        WHERE   MOBILE_NO = :mob_no;
+    if ( sqlca.sqlcode == SUCCESS ) {
+        strcpy(cust_acct, trimStr(cust_acct));
+        strcpy(cus_acc, cust_acct);
+    }
+    else if ( sqlca.sqlcode != NOT_FOUND ) {
+        strcpy(oerr, trimStr(sqlca.sqlerrm.sqlerrmc));
+        writeLog(LOG_ERR, "getMobileSub: query error on MOBILE_ACCOUNT table, Ora(%d) - %s (mob_no %s)", sqlca.sqlcode, oerr, mob_no);
+        return FAILED;
+    }
+    return SUCCESS;
+
 }

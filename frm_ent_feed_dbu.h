@@ -13,7 +13,8 @@
 /// LAST RELEASE DATE  : 21-Jun-2019
 ///
 /// MODIFICATION HISTORY :
-///     1.0     21-Jun-2019     First Version
+///     1.0         21-Jun-2019     First Version
+///     1.1.1       31-Jul-2019     get customer account for change group process
 ///
 ///
 #ifndef __ENT_FEED_DBU_H__
@@ -170,6 +171,8 @@ void    purgeTable(int purge_day);
 void    getEntityTypeId();
 
 void    createHtmlFromTemplate(char mail_ini[][SIZE_ITEM_L], int temp_type_idx, int val1, int val2);
+
+int     getCustAccFromMobile(char *mob_no, char *cus_acc);
 
 #ifdef  __cplusplus
     }

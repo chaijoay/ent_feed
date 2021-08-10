@@ -13,7 +13,8 @@
 /// LAST RELEASE DATE  : 21-Jun-2019
 ///
 /// MODIFICATION HISTORY :
-///     1.0     21-Jun-2019     First Version
+///     1.0         21-Jun-2019     First Version
+///     1.1.1       31-Jul-2019     get customer account for change group process
 ///
 ///
 
